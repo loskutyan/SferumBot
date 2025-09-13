@@ -106,9 +106,13 @@ class Message:
         link = (0, 100)
         lvls = ("w", "z", "y", "r", "q", "p", "o", "x", "m", "s")
 
-        for i in attach["sizes"]:
-            if lvls.index(i["type"]) < link[1]:
-                link = (i["url"], lvls.index(i["type"]))
+        for attach_size in attach["sizes"]:
+            attach_size_type = attach_size["type"]
+            if not attach_size_type in lvls:
+                logger.debug(f"Attach size type {attach_size_type} not found in sizes levels: {lvls}")
+                continue
+            if lvls.index(attach_size["type"]) < link[1]:
+                link = (attach_size["url"], lvls.index(attach_size["type"]))
         return link[0]
 
 

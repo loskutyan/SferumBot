@@ -37,7 +37,8 @@ async def main(
             async with session.post(f"https://{server}", data=data) as r:
                 req = await r.json()
 
-            logger.debug(req)
+            if "updates" in req and req["updates"]:
+                logger.debug(req)
 
             if req.get("updates"):
                 data["ts"] += 1
