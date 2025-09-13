@@ -4,7 +4,7 @@
 class EventMessage:
     """Event message class."""
 
-    def __init__(self, type, msg_id, flags, peer, value, title, text, **kwargs) -> None:  # noqa: D107, PLR0913
+    def __init__(self, type, msg_id, flags, peer, value, title, text, **kwargs) -> None:  # noqa: D107
         self.type = type
         self.msg_id = msg_id
         self.flags = flags
@@ -13,5 +13,5 @@ class EventMessage:
         self.title = title
         self.__dict__.update(kwargs)
 
-    def __repr__(self) -> str:  # noqa: D105
+    def __repr__(self) -> str:
         return f"from {self.title}: {self.text}, chat id: {self.chat_id}"

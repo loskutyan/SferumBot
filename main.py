@@ -11,7 +11,7 @@ from vk.methods import get_credentials, get_message, get_user_credentials
 from vk.vk_types import EventMessage, Message
 
 
-async def main(  # noqa: PLR0913
+async def main(
     session: ClientSession,
     server: str,
     key: str,

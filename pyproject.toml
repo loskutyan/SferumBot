@@ -11,9 +11,7 @@ dependencies = [
 
 [tool.ruff]
 select = ["ALL"]
-ignore = [
-    "BLE001", "PLR2004", "PLE0604"
-]
+ignore = ["BLE001", "PLR2004", "PLR0913", "PLE0604", "D105"]
 force-exclude = true
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -65,4 +63,3 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-

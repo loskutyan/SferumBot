@@ -29,7 +29,7 @@ async def gen_tg_msg(msg: VkMessage) -> tuple[dict, callable]:
         for attach in media:
             media_type = attach[0]
 
-            if media_type != "video":
+            if media_type not in {"video", "poll"}:
                 types[media_type] = types.get(media_type, [])
 
                 types[media_type].append(

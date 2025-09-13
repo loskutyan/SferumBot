@@ -1,14 +1,17 @@
 """Get msg."""
 
 from __future__ import annotations
-from loguru import logger
 
 import re
 from typing import TYPE_CHECKING, Self
-from aiogram.types import BufferedInputFile
+
 import requests
+from aiogram.types import BufferedInputFile
+from loguru import logger
 
 if TYPE_CHECKING:
+    from datetime import date
+
     from aiohttp import ClientSession
 
 REFACTOR_REGEX = r"(?<!\\)(\\|_|\*|\[|\]|\(|\)|\~|`|>|#|\+|-|=|\||\{|\}|\.|\!)"
@@ -20,7 +23,7 @@ class Message:
     async def async_init(
         self: Self,
         session: ClientSession,
-        date,
+        date: date,
         from_id: int,
         text: str,
         attachments: list,
@@ -61,7 +64,7 @@ class Message:
 
     @staticmethod
     async def __get_sticker(obj: dict) -> str:
-        return f'https://vk.com/sticker/1-{obj["sticker_id"]}-512b'
+        return f"https://vk.com/sticker/1-{obj['sticker_id']}-512b"
 
     async def __parse_attachments(self) -> list:
         media = []
@@ -70,6 +73,7 @@ class Message:
             "video": self.__get_player,
             "doc": self.__get_source_link,
             "sticker": self.__get_sticker,
+            "poll": self.__get_poll_info,
         }
         for attach in self.attachments:
             media_type = attach["type"]
@@ -88,9 +92,11 @@ class Message:
     async def __get_source_link(attach: dict) -> str:
         req = requests.get(attach["url"])  # noqa: ASYNC210, S113
         logger.info(req.headers.get("Content-Type"))
+
         if req.headers.get("Content-Type") == "text/html; charset=windows-1251":
             return attach["url"], "video"
-        elif req.headers.get("Content-Type").split("/")[0] in ("application", "text"):
+
+        if req.headers.get("Content-Type").split("/")[0] in ("application", "text"):
             if attach["size"] < 52428800:
                 return (
                     BufferedInputFile(
@@ -115,12 +121,16 @@ class Message:
 
         for attach_size in attach["sizes"]:
             attach_size_type = attach_size["type"]
-            if not attach_size_type in lvls:
+            if attach_size_type not in lvls:
                 logger.debug(f"Attach size type {attach_size_type} not found in sizes levels: {lvls}")
                 continue
             if lvls.index(attach_size["type"]) < link[1]:
                 link = (attach_size["url"], lvls.index(attach_size["type"]))
         return link[0]
+
+    @staticmethod
+    async def __get_poll_info(attach: dict) -> dict:
+        return attach
 
     async def __parse_fwds(self: Self) -> list[Self]:
         return [await Message().async_init(self.session, **msg, profiles=self.profiles) for msg in self.fwd]
@@ -145,7 +155,7 @@ class Message:
         media = self.media
         for msg in self.fwd:
             logger.debug(msg)
-            media.extend(msg.media)
+            media.extend(attach for attach in msg.media if attach[0] != "poll")
 
         return media
 
@@ -160,23 +170,35 @@ class Message:
             [
                 "*",
                 await self.__markdown_escape(
-                    f'{f"{chat_title}\n" if chat_title else ""}{self.full_name}:',
+                    f"{f'{chat_title}\n' if chat_title else ''}{self.full_name}:",
                 ),
                 "*",
                 await self.__markdown_escape(f"{self.text}"),
-            ]
+            ],
         )
 
-        # Вложения (фото, видео, документы)  # noqa: ERA001
+        # Вложения (фото, видео, документы, опросы)  # noqa: ERA001
         if self.attachments:
             logger.debug(self.media)
-            text += " ".join([f"*{x[0]}*" if x[0] != "video" else f"[{x[0]}]({x[1]})" for x in self.media])
+        media_to_text_attachments = []
+        for attach in self.media:
+            if attach[0] == "video":
+                media_to_text_attachments.append(f"[{attach[0]}]({attach[1]})")
+            elif attach[0] == "poll":
+                question = attach[1]["question"]
+                anonymous_text = "анонимный" if attach[1]["anonymous"] else "публичный"
+                text += f"\n*Опрос*\n{question} \\({anonymous_text}\\)\n" + "\n".join(
+                    "\\- " + ans["text"] for ans in attach[1]["answers"]
+                )
+            else:
+                media_to_text_attachments += f"*{attach[0]}*"
             text += "\n"
 
         # Пересланные сообщения (forward)
         if self.fwd:
             x = [
-                await msg.get_tg_text(
+                "\n_\\(пересланное сообщение\\)_"
+                + await msg.get_tg_text(
                     msg.chat_title,
                     fwd_depth=fwd_depth + 1,
                 )

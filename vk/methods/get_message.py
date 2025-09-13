@@ -1,5 +1,7 @@
 """Get msg."""
 
+import json
+
 from aiohttp import ClientSession
 from loguru import logger
 
@@ -30,7 +32,9 @@ async def get_message(
     ) as r:
         req = await r.json()
 
-    logger.debug(f"[VK API] get_message response: {req}")
+    # jsonify back again for message convenient prettifying
+    logger.debug(f"[VK API] get_message response JSON: {json.dumps(req, ensure_ascii=False)}")
+
     if req.get("error"):
         return {"error": True, "text": "access token has expired"}
 
