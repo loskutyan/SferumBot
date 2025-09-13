@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 REFACTOR_REGEX = r"(?<!\\)(\\|_|\*|\[|\]|\(|\)|\~|`|>|#|\+|-|=|\||\{|\}|\.|\!)"
 
+
 class Message:
     """Get msg."""
 
@@ -48,7 +49,7 @@ class Message:
             self.media = await self.__parse_attachments()
 
         if self.fwd:
-           self.fwd = await self.__parse_fwds()
+            self.fwd = await self.__parse_fwds()
 
         if self.fwd:
             self.media = await self.__get_all_media()
@@ -79,7 +80,7 @@ class Message:
                     parsed = parsed[0]
                 media.append(
                     (media_type, parsed),
-                    )
+                )
         logger.debug(media)
         return media
 
@@ -91,14 +92,20 @@ class Message:
             return attach["url"], "video"
         elif req.headers.get("Content-Type").split("/")[0] in ("application", "text"):
             if attach["size"] < 52428800:
-                return BufferedInputFile(
-                    req.content,
-                    filename=attach["title"],
-                    ), "doc"
-            return BufferedInputFile(
-                "File is too large to upload to telegram",
-                filename="file is too large.txt",
-            ), "doc"
+                return (
+                    BufferedInputFile(
+                        req.content,
+                        filename=attach["title"],
+                    ),
+                    "doc",
+                )
+            return (
+                BufferedInputFile(
+                    "File is too large to upload to telegram",
+                    filename="file is too large.txt",
+                ),
+                "doc",
+            )
         return attach["url"], "doc"
 
     @staticmethod
@@ -115,12 +122,8 @@ class Message:
                 link = (attach_size["url"], lvls.index(attach_size["type"]))
         return link[0]
 
-
     async def __parse_fwds(self: Self) -> list[Self]:
-        return [
-            await Message().async_init(self.session, **msg, profiles=self.profiles)
-            for msg in self.fwd
-        ]
+        return [await Message().async_init(self.session, **msg, profiles=self.profiles) for msg in self.fwd]
 
     async def __sender_full_name(self: Self) -> None:
         for profile in self.profiles:
@@ -147,35 +150,38 @@ class Message:
         return media
 
     async def get_tg_text(
-        self: Self, chat_title: str | None = "", fwd_depth: int | None = 0,
+        self: Self,
+        chat_title: str | None = "",
+        fwd_depth: int | None = 0,
     ) -> str:
         """Build telegram msg."""
         # Формируем сообщение
-        text = "".join([
-            "*",
-            await self.__markdown_escape(
-                f'{f"{chat_title}\n" if chat_title else ""}{self.full_name}:',
-            ),
-            "*",
-            await self.__markdown_escape(f"{self.text}"),
-        ])
+        text = "".join(
+            [
+                "*",
+                await self.__markdown_escape(
+                    f'{f"{chat_title}\n" if chat_title else ""}{self.full_name}:',
+                ),
+                "*",
+                await self.__markdown_escape(f"{self.text}"),
+            ]
+        )
 
         # Вложения (фото, видео, документы)  # noqa: ERA001
         if self.attachments:
             logger.debug(self.media)
-            text += " ".join([
-                f"*{x[0]}*" if x[0] != "video" else f"[{x[0]}]({x[1]})"
-                for x in self.media
-            ])
+            text += " ".join([f"*{x[0]}*" if x[0] != "video" else f"[{x[0]}]({x[1]})" for x in self.media])
             text += "\n"
 
         # Пересланные сообщения (forward)
         if self.fwd:
             x = [
-                    await msg.get_tg_text(
-                        msg.chat_title, fwd_depth=fwd_depth + 1,
-                    ) for msg in self.fwd
-                ]
+                await msg.get_tg_text(
+                    msg.chat_title,
+                    fwd_depth=fwd_depth + 1,
+                )
+                for msg in self.fwd
+            ]
             logger.debug(x)
             text += "".join(x)
 

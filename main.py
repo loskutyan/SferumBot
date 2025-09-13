@@ -1,16 +1,17 @@
 """Main cycle module."""
 
-from loguru import logger
-from aiogram import Bot
-from aiohttp import ClientSession
 from asyncio import sleep
 
-from vk.vk_types import EventMessage, Message
-from tg.methods import send_message, send_error
+from aiogram import Bot
+from aiohttp import ClientSession
+from loguru import logger
+
+from tg.methods import send_error, send_message
 from vk.methods import get_credentials, get_message, get_user_credentials
+from vk.vk_types import EventMessage, Message
 
 
-async def main(
+async def main(  # noqa: PLR0913
     session: ClientSession,
     server: str,
     key: str,
@@ -21,7 +22,7 @@ async def main(
     cookie: str,
     pts: int,
     bot: Bot,
-    tg_topic_id = None,
+    tg_topic_id: int | None = None,
 ) -> None:
     """Cycle function."""
     data = {
@@ -32,12 +33,12 @@ async def main(
     }
 
     while True:
-        await sleep(.2)
+        await sleep(0.2)
         try:
             async with session.post(f"https://{server}", data=data) as r:
                 req = await r.json()
 
-            if "updates" in req and req["updates"]:
+            if req.get("updates", []):
                 logger.debug(req)
 
             if req.get("updates"):
@@ -97,4 +98,3 @@ async def main(
         except Exception as e:
             await send_error(bot, tg_chat_id, tg_topic_id)
             logger.exception(e)
-
